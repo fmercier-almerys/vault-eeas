@@ -1,0 +1,64 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Plugin required
+# vagrant plugin install vagrant-hostsupdater
+# https://github.com/hashicorp/vagrant/wiki/Available-Vagrant-Plugins
+# vagrant plugin install vagrant-hostmanager
+# https://github.com/devopsgroup-io/vagrant-hostmanager
+
+$node = <<NODE
+yum install -y git wget
+
+ssh-keyscan -H sources.devtools.local >> /home/vagrant/.ssh/known_hosts
+cp -f /vagrant/vagrant/sshd_config /etc/ssh/sshd_config
+
+echo "configure vagrant user"
+cp /vagrant/vagrant/id_rsa /home/vagrant/.ssh
+chown -R vagrant:vagrant /home/vagrant/.ssh
+chmod 700 /home/vagrant/.ssh
+chmod 600 /home/vagrant/.ssh/id_rsa
+
+systemctl restart sshd
+systemctl restart network
+
+cd /opt
+wget https://releases.hashicorp.com/consul/1.2.1/consul_1.2.1_linux_amd64.zip
+wget https://releases.hashicorp.com/vault/0.10.4/vault_0.10.4_linux_amd64.zip
+nohup ./consul agent -bootstrap-expect 1 -server -bind 192.168.50.11 -client 192.168.50.11 -node=agent-one -ui -data-dir=/tmp/consul
+nohup ./vault server -config=/vagrant/vagrant/config.hcl
+./vault operator init
+NODE
+
+Vagrant.configure(2) do |config|
+
+  nb_machine = 1
+  config.vm.box = "centos/7"
+  config.vm.synced_folder "../", "/vagrant", type: "virtualbox", owner: "vagrant", mount_options: ["dmode=775,fmode=600"]
+  config.hostmanager.enabled = true
+  config.hostmanager.manage_guest = true
+  config.hostmanager.include_offline = true
+
+  config.vm.define "ansible-node4" do |middleware|
+      middleware.vm.hostname = "ansible-node4"
+      middleware.vm.network :private_network, ip: "192.168.50.14"
+      middleware.vm.provision "docker"
+      middleware.vm.provision "shell", path: "provision-docker.sh"
+      middleware.vm.provider "virtualbox" do |v|
+        v.memory = 4096
+        v.name = "ansible-node4"
+       end
+  end
+
+  (1..nb_machine).each do |i|
+  config.vm.define "vault#{i}" do |node|
+      node.vm.hostname = "vault#{i}"
+      node.vm.network :private_network, ip: "192.168.50.1#{i}"
+      node.vm.provision "shell", inline: $node
+      node.vm.provider "virtualbox" do |v|
+        v.name = "#{node.vm.hostname}"
+        v.memory = 1024
+      end
+    end
+  end
+end

@@ -1,6 +1,6 @@
 vault:
   host: "http://192.168.50.11:8200"
-  key: "gexrt"
+  key: "mykey"
   decryptEndpoint: "v1/transit/decrypt"
   encryptEndpoint: "v1/transit/encrypt"
   token: "ef1054f3-076f-6869-4c77-84286e9d1ace"

@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 
 public class AsyncVaultEngine implements AsyncEncryptEngine {
 
-    public AsyncVaultDriver vaultDriver;
+    private AsyncVaultDriver vaultDriver;
 
     public  AsyncVaultEngine(AsyncVaultDriver vaultDriver) {
         this.vaultDriver = vaultDriver;
@@ -23,7 +23,7 @@ public class AsyncVaultEngine implements AsyncEncryptEngine {
         vaultDriver.encrypt(request, vaultResponse -> {
             jsonNode.replaceValues(pointers, vaultResponse.getCipheredValues());
             onSuccess.accept(vaultResponse);
-        }, exception -> onError.accept(exception));
+        }, onError::accept);
     }
 
     @Override
@@ -33,6 +33,6 @@ public class AsyncVaultEngine implements AsyncEncryptEngine {
         vaultDriver.decrypt(request, vaultResponse -> {
             jsonNode.replaceValues(pointers, vaultResponse.getValues());
             onSuccess.accept(vaultResponse);
-        }, exception -> onError.accept(exception));
+        }, onError::accept);
     }
 }
